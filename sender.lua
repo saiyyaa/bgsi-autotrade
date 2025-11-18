@@ -1,15 +1,16 @@
+return function(cfg)
+
 task.wait(20)
 setfpscap(15)
 
-local TARGET_PLAYER = "Tesploited"
-local ADD_PETS = true
-local ACCEPT_DELAY = 15
-local CONFIRM_DELAY = 10
-local POST_TRADE_DELAY = 15
-local MAX_PETS = 10
-
-local JOB_IDS = {
-    "6ef445f3-035d-4c51-948e-0cc82bc9b752",
+local TARGET_PLAYER = cfg.TARGET_PLAYER or ""
+local ADD_PETS = cfg.ADD_PETS ~= false
+local ACCEPT_DELAY = cfg.ACCEPT_DELAY or 15
+local CONFIRM_DELAY = cfg.CONFIRM_DELAY or 10
+local POST_TRADE_DELAY = cfg.POST_TRADE_DELAY or 15
+local MAX_PETS = cfg.MAX_PETS or 10
+local JOB_IDS = cfg.JOB_IDS or {
+    "",
 }
 
 local Players = game:GetService("Players")
@@ -98,4 +99,6 @@ end
 
 while task.wait(2) do
     runTrade()
+end
+
 end
