@@ -9,9 +9,7 @@ local ACCEPT_DELAY = cfg.ACCEPT_DELAY or 15
 local CONFIRM_DELAY = cfg.CONFIRM_DELAY or 10
 local POST_TRADE_DELAY = cfg.POST_TRADE_DELAY or 15
 local MAX_PETS = cfg.MAX_PETS or 10
-local JOB_IDS = cfg.JOB_IDS or {
-    "",
-}
+local JOB_IDS = cfg.JOB_IDS or { "" }
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -32,7 +30,11 @@ end
 
 local function tryJoinJobIds()
     for _, jobId in ipairs(JOB_IDS) do
-        if joinJob(jobId) then
+        if jobId ~= "" and joinJob(jobId) then
+            -- wait until we are in the desired job
+            while game.JobId ~= jobId do
+                task.wait(1)
+            end
             return true
         end
     end
