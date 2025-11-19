@@ -16,14 +16,43 @@ return function(CONFIG)
     local MAX_PETS = CONFIG.MAX_PETS or 10
     local JOB_IDS = CONFIG.JOB_IDS or {}
 
+    -- Only attempt teleport once; avoid repeating and avoid teleporting if already in the target server.
+    local hasAttemptedTeleport = false
+
+    local function normalizeId(s)
+        if not s then return "" end
+        s = tostring(s)
+        -- Remove whitespace and common surrounding characters to avoid formatting mismatches.
+        s = s:gsub("%s+", "")
+        s = s:gsub("^\"(.*)\"$", "%1")
+        s = s:gsub("^'(.*)'$", "%1")
+        return s
+    end
+
     if #JOB_IDS > 0 then
         local jobId = JOB_IDS[1]
         task.spawn(function()
             task.wait(1)
-            -- Only teleport if the configured jobId is non-empty and different from the current server's job id.
-            -- This prevents rejoining the same server when you're already in the correct job.
-            if jobId and jobId ~= "" and tostring(game.JobId) ~= tostring(jobId) then
-                TeleportService:TeleportToPlaceInstance(game.PlaceId, jobId)
+            if jobId and jobId ~= "" and not hasAttemptedTeleport then
+                local cur = normalizeId(game.JobId or "")
+                local targ = normalizeId(jobId)
+                print("[autotrade] current JobId:", cur, " target JobId:", targ)
+
+                local same = false
+                if cur ~= "" and targ ~= "" then
+                    -- direct equality or substring match to handle slight formatting differences
+                    if cur == targ or cur:find(targ, 1, true) or targ:find(cur, 1, true) then
+                        same = true
+                    end
+                end
+
+                if same then
+                    print("[autotrade] teleport skipped — already in target job.")
+                else
+                    hasAttemptedTeleport = true
+                    print("[autotrade] teleporting to jobId:", jobId)
+                    TeleportService:TeleportToPlaceInstance(game.PlaceId, jobId)
+                end
             end
         end)
     end
