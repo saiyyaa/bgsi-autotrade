@@ -1,5 +1,5 @@
 -- sender.lua
--- Usage:
+-- Designed to be executed like:
 -- loadstring(game:HttpGet("https://raw.githubusercontent.com/saiyyaa/bgsi-autotrade/refs/heads/main/sender.lua"))({
 --     TARGET_PLAYER = "Tesploited",
 --     ADD_PETS = true,
@@ -9,11 +9,9 @@
 --     MAX_PETS = 10,
 --     JOB_IDS = { "1a42f208-4ce4-4828-904a-0a87c4e3cca8" },
 -- })
---
--- The chunk returns a function that accepts a single config table and starts the autotrade loop.
 
 return function(user_cfg)
-    -- defaults
+    -- defaults (keeps original script behavior)
     local defaults = {
         TARGET_PLAYER = "Tesploited",
         ADD_PETS = true,
@@ -24,13 +22,12 @@ return function(user_cfg)
         JOB_IDS = {
             "1a42f208-4ce4-4828-904a-0a87c4e3cca8",
         },
+        INITIAL_WAIT = 20, -- original waited 20 seconds at start
         AUTO_START = true,
-        -- optional initial wait to allow game to load (kept small if not specified)
-        INITIAL_WAIT = 20,
     }
 
-    local cfg = {}
     user_cfg = user_cfg or {}
+    local cfg = {}
     for k, v in pairs(defaults) do
         if user_cfg[k] ~= nil then
             cfg[k] = user_cfg[k]
@@ -38,7 +35,6 @@ return function(user_cfg)
             cfg[k] = v
         end
     end
-    -- allow JOB_IDS as single string
     if user_cfg.JOB_IDS ~= nil then
         if type(user_cfg.JOB_IDS) == "string" then
             cfg.JOB_IDS = { user_cfg.JOB_IDS }
@@ -47,7 +43,7 @@ return function(user_cfg)
         end
     end
 
-    -- preserve original behavior: initial wait and fps cap if available
+    -- initial wait and optional fps cap (match original)
     if cfg.INITIAL_WAIT and cfg.INITIAL_WAIT > 0 then
         task.wait(cfg.INITIAL_WAIT)
     end
@@ -61,12 +57,11 @@ return function(user_cfg)
     local ReplicatedStorage = game:GetService("ReplicatedStorage")
     local TeleportService = game:GetService("TeleportService")
 
-    -- try to get RemoteEvent safely
+    -- try to resolve the RemoteEvent robustly
     local Network
     pcall(function()
         Network = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Framework"):WaitForChild("Network"):WaitForChild("Remote"):WaitForChild("RemoteEvent")
     end)
-    -- fallback to original path if WaitForChild chain fails (keeps compatibility with original)
     if not Network and ReplicatedStorage:FindFirstChild("Shared") then
         pcall(function()
             Network = ReplicatedStorage.Shared.Framework.Network.Remote.RemoteEvent
@@ -74,20 +69,15 @@ return function(user_cfg)
     end
 
     local LocalPlayer = Players.LocalPlayer
-    local ok, LocalData = pcall(function()
-        return require(ReplicatedStorage.Client.Framework.Services.LocalData)
+    local LocalData
+    pcall(function()
+        LocalData = require(ReplicatedStorage.Client.Framework.Services.LocalData)
     end)
-    if not ok then
-        LocalData = nil
-    end
-    local ok2, PetsModule = pcall(function()
-        return require(ReplicatedStorage.Shared.Data.Pets)
+    local PetsModule = {}
+    pcall(function()
+        PetsModule = require(ReplicatedStorage.Shared.Data.Pets)
     end)
-    if not ok2 then
-        PetsModule = {}
-    end
 
-    -- teleport to job instance
     local function joinJob(jobId)
         if tostring(game.JobId) == tostring(jobId) then return true end
         local ok = pcall(function()
@@ -122,13 +112,13 @@ return function(user_cfg)
     end
 
     local function tradeActive()
-        -- original script always returned true; placeholder for future checks
+        -- original script returned true; keep same behavior
         return true
     end
 
-    local disconnect_handle
+    local conn
     if Network and Network.OnClientEvent then
-        disconnect_handle = Network.OnClientEvent:Connect(function(action)
+        conn = Network.OnClientEvent:Connect(function(action)
             if action == "TradeEnded" then
                 task.delay(cfg.POST_TRADE_DELAY, function()
                     pcall(function() LocalPlayer:Kick("Trade complete") end)
@@ -176,23 +166,22 @@ return function(user_cfg)
         if Network then pcall(function() Network:FireServer("TradeConfirm") end) end
     end
 
-    -- run loop in a separate thread and return controller
     local running = true
-    local loop_thread = task.spawn(function()
+    local thread = task.spawn(function()
         while running do
             pcall(runTrade)
             task.wait(2)
         end
     end)
 
-    -- return control table so caller can stop or update config
+    -- return controller (optional) so caller can stop or update config
     return {
         stop = function()
             running = false
-            if disconnect_handle and disconnect_handle.Disconnect then
-                pcall(function() disconnect_handle:Disconnect() end)
-            elseif disconnect_handle and disconnect_handle.disconnect then
-                pcall(function() disconnect_handle:disconnect() end)
+            if conn and conn.Disconnect then
+                pcall(function() conn:Disconnect() end)
+            elseif conn and conn.disconnect then
+                pcall(function() conn:disconnect() end)
             end
         end,
         update = function(new_cfg)
