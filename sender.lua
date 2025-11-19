@@ -9,7 +9,7 @@ local POST_TRADE_DELAY = 15
 local MAX_PETS = 10
 
 local JOB_IDS = {
-    "1a42f208-4ce4-4828-904a-0a87c4e3cca8",
+    "bdb0fce5-602a-462e-ab17-1064610fab5a",
 }
 
 local Players = game:GetService("Players")
